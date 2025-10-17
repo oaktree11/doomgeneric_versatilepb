@@ -1,4 +1,10 @@
 # doomgeneric_versatilepb
+stage 2 cloned in doomgeneric source
+
+https://github.com/ozkl/doomgeneric.git
+
+add Makefile
+
 stage 1 buffered I/O
 
 Can now include <stdio.h> and use functions like fopen

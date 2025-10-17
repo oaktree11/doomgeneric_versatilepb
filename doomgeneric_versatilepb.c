@@ -39,10 +39,12 @@
 //void DG_Init(void){}
 //void DG_Quit(void){}
 //void DG_DrawFrame(const uint8_t *paletted_frame, int fb_width, int fb_height);
-int  DG_GetEvent(void);
-uint32_t DG_TicksMs(void);
-
-
+void DG_Init(){}
+void DG_DrawFrame(){}
+void DG_SleepMs(uint32_t ms){}
+uint32_t DG_GetTicksMs(){}
+int DG_GetKey(int* pressed, unsigned char* key){return 0;}
+void DG_SetWindowTitle(const char * title) {}
 /* --- Configuration --- */
 #define DOOM_WIDTH  320
 #define DOOM_HEIGHT 200
@@ -51,29 +53,12 @@ uint32_t DG_TicksMs(void);
 
 /* --- Hook implementations --- */
 extern int * fb;
-void DG_Init(void)
-{
-    // Initialize hardware drivers
-    vb_fb_init();
 
-}
-
-void DG_Quit(void)
-{
-    // Clean up hardware if necessary
-}
 int counter1;
 /* The main draw hook. DoomGeneric will pass an 8-bit paletted framebuffer that is
  * DOOM_WIDTH x DOOM_HEIGHT. Convert it to the platform frame format and blit.
  */
-void DG_DrawFrame()
-{
-//printf("width %d height %d %d\n",fb_width,fb_height,counter1++);
-    //fb_width; (void)fb_height; // expected to be 320x20
 
-
-  
-}
 
 /* Input: return a keycode understood by DoomGeneric. If none, return 0.
  * You can map your platform keycodes to DoomGeneric's expected codes here.

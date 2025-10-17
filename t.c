@@ -16,7 +16,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "defines.h"
 #include "string.c"
-//#define printf kprintf
+#define printf kprintf
 
 char *tab = "0123456789ABCDEF";
 int BASE;
@@ -30,6 +30,29 @@ int color;
 #include "sdc.c"
 #include "diskio.c"
 #include "ff.c"
+extern char _end;      /* defined by linker */
+extern char stack_top;   /* defined by linker */
+
+static char *heap_end;
+
+void* _sbrk(int incr) {
+ printf("sbrk incr = %d\n",incr);
+    if (heap_end == 0) {
+        heap_end = &_end;
+    }
+
+    char *prev_heap_end = heap_end;
+    char *new_heap_end  = heap_end + incr;
+
+    if (new_heap_end >= &stack_top) {
+        // Out of memory
+        printf("out of memory in sbrk incr = %d\n",incr);
+        return (void *) -1;
+    }
+
+    heap_end = new_heap_end;
+    return (void *) prev_heap_end;
+}
 
 void copy_vectors(void) {
     extern u32 vectors_start;
@@ -145,6 +168,7 @@ int _open(char *name, int flags, int mode) {
     printf("call open %s\n",name);
     if (f_open(fp, name, FA_READ) != FR_OK) {
         free(fp);
+         printf("cant open %s\n",name);
         return -1;
     }
     printf("open ok \n");
@@ -239,6 +263,7 @@ int main()
    
    zero();
 fatfs_test();
+doomgeneric_Create(1, "hello");
    while(1){
       
    }
