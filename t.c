@@ -90,6 +90,29 @@ int zero(){
 	for (int i=0;i<512;i++)
 		arr[i]=0;
 }
+extern char _end;      /* defined by linker */
+extern char stack_top;   /* defined by linker */
+
+static char *heap_end;
+
+void* _sbrk(int incr) {
+ printf("sbrk incr = %d\n",incr);
+    if (heap_end == 0) {
+        heap_end = &_end;
+    }
+
+    char *prev_heap_end = heap_end;
+    char *new_heap_end  = heap_end + incr;
+
+    if (new_heap_end >= &stack_top) {
+        // Out of memory
+        printf("out of memory in sbrk incr = %d\n",incr);
+        return (void *) -1;
+    }
+
+    heap_end = new_heap_end;
+    return (void *) prev_heap_end;
+}
 
 
 char rbuf[512], wbuf[512];
