@@ -35,7 +35,7 @@ u8 cursor;
 int volatile *fb;
 unsigned char *font;
 int row, col;
-
+int fb1[(1*1024*1024)];
 int fbuf_init()
 {
   int x; int i;
@@ -53,7 +53,7 @@ int fbuf_init()
   *(volatile u32 *)(0x10120000) = 0x3F1F3F9C;    // time0
   *(volatile u32 *)(0x10120004) = 0x090B61DF;    // time1
   *(volatile u32 *)(0x10120008) = 0x067F1800;    // time2
-  *(volatile u32 *)(0x10120010) = (1*1024*1024); // panelBaseAddress
+  *(volatile u32 *)(0x10120010) = fb1;//(1*1024*1024); // panelBaseAddress
   *(volatile u32 *)(0x10120018) = 0x80B; //82B;  // control register
   *(volatile u32 *)(0x1012001c) = 0x0;           // IntMaskRegister
 
