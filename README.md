@@ -1,9 +1,9 @@
 # doomgeneric_versatilepb
-## stage 2 cloned in doomgeneric source
+## stage 2 added in doomgeneric source
 
 https://github.com/ozkl/doomgeneric.git
 
-The Makefile has already been updated to incorporate stage-0 and stage-1 
+The doomgeneric Makefile was updated to incorporate stage-0 and stage-1 
 
 the ./mk script invokes make and then runs qemu with the appropriate exe  
 ### To clean up the compilation may need to run  
@@ -14,6 +14,7 @@ touch t.c
 
 ## ToDO use vscode to debug stage-2
 should get errors about not being able to find a wad file
+### Example workflow below.
 ### A. View call stack for exit
 1. use vscode to debug the stage 2 code
 2. run the ./mkdebug
