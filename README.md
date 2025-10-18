@@ -1,6 +1,6 @@
 # doomgeneric_versatilepb
 ## stage 0
-Starting with the sdc example. Add the FAT file system middleware from here  
+Starting with the sdc example. The FAT file system middleware from here was added    
 https://elm-chan.org/fsw/ff/
 
 
@@ -15,3 +15,6 @@ copy files to /mnt/sdcard_test which copies them into the file system in sdimage
 ### Need to be root to do the copying
 sudo cp t.c /mnt/sdimage
 
+### Create a test case for the firmware
+see here  
+https://elm-chan.org/fsw/ff/doc/open.html
