@@ -114,7 +114,12 @@ int zero(){
 		arr[i]=0;
 }
 
-
+int yuy1;
+int _exit(){
+uprintf("exiting program");
+while(1)
+yuy1++;
+}
 char rbuf[512], wbuf[512];
 char *line[2] = {"THIS IS A TEST LINE", "this is a test line"};
 //#include "ff.h"      // FatFs header
@@ -264,7 +269,8 @@ int main()
    zero();
 fatfs_test();
 doomgeneric_Create(1, "hello");
+  printf("doing loop\n");
    while(1){
-      
+       doomgeneric_Tick();
    }
 }
