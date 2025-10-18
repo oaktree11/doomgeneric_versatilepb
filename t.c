@@ -96,7 +96,7 @@ extern char stack_top;   /* defined by linker */
 static char *heap_end;
 
 void* _sbrk(int incr) {
- printf("sbrk incr = %d\n",incr);
+ //printf("sbrk incr = %d\n",incr);
     if (heap_end == 0) {
         heap_end = &_end;
     }
