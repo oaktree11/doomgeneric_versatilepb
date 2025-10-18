@@ -9,7 +9,7 @@ the ./mk script invokes make and then runs qemu with the appropriate exe
 ### To clean up the compilation may need to run  
 make clean
 ### To compile vid.c or sdc.c etc do
-touch t.c 
+touch t.c  
 ./mk
 
 ## ToDO use vscode to debug stage-2
