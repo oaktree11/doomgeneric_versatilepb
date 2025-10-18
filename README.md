@@ -1,7 +1,7 @@
 # doomgeneric_versatilepb
 ## stage 2 cloned in doomgeneric source
 
-https://github.com/ozkl/doomgeneric.git
+https://github.com/ozkl/doomgeneric.git 
 The Makefile has already been updated to incorporate stage-0 and stage-1 
 
 the ./mk script invokes make and then runs qemu with the appropriate exe  
@@ -25,7 +25,7 @@ should get errors about not being able to find a wad file
 
 ### B. Create a new sdimage file with a doom1.wad in it
 Get doom1.wad from here 
-https://doomwiki.org/wiki/DOOM1.WAD
+https://doomwiki.org/wiki/DOOM1.WAD 
 debug using vscode  
 Give an overview of the final function call stack in your report
 
