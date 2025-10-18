@@ -35,7 +35,7 @@ u8 cursor;
 int volatile *fb;
 unsigned char *font;
 int row, col;
-int fb1[(6*1024*1024)];
+int fb1[(1*1024*1024)];
 int fbuf_init()
 {
   int x; int i;
@@ -63,7 +63,7 @@ int fbuf_init()
        inten[i]=0x8F008F00;
   }
   ******** yet to figure out HOW TO use these palletes *************/
-  fb = (int *)(1*1024*1024);  // at 1MB area; enough for 800x600 SVGA
+  fb = (int *)fb1;  // at 1MB area; enough for 800x600 SVGA
   font = fonts0;              // use fonts0 for char bit patterns 
 
   // for (x = 0; x < (800 * 600); ++x) // for one BAND
