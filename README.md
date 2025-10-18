@@ -15,6 +15,11 @@ copy files to /mnt/sdcard_test which copies them into the file system in sdimage
 ### Need to be root to do the copying
 sudo cp t.c /mnt/sdimage
 
-### Create a test case for the firmware
+### when finished with the sdimage file
+umount /mnt/sdcard_test 
+### If you wish to modify or list files in the file system then do
+sudo mount -o loop sdimage /mnt/sdcard_test 
+
+## TODO Create a test case for the firmware
 see here  
 https://elm-chan.org/fsw/ff/doc/open.html
