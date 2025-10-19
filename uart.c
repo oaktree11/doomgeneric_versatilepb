@@ -96,9 +96,9 @@ int do_rx(UART *up)
   while(!(*(up->base + UFR) & 0x40));
   c = *(up->base+UDR);
 
-  //kprintf("rx interrupt: %c\n", c);
-  if (c==0xD)
-     kprintf("\n");
+ // kprintf("rx interrupt: %c\n", c);
+  //if (c==0xD)
+    // kprintf("\n");
   up->inbuf[up->inhead++] = c; 
   up->inhead %= SBUFSIZE;
   up->indata++; up->inroom--;
@@ -125,6 +125,10 @@ int do_tx(UART *up)
   up->outdata--; up->outroom++;
 }
        
+upeek(UART *up){
+return up->indata>0;
+}
+
 int ugetc(UART *up)
 {
   char c;

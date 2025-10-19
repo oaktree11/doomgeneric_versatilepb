@@ -40,14 +40,24 @@
 //void DG_Quit(void){}
 //void DG_DrawFrame(const uint8_t *paletted_frame, int fb_width, int fb_height);
 void DG_Init(){}
-void DG_DrawFrame(){}
-void DG_SleepMs(uint32_t ms){}
-long int ticks;
-uint32_t DG_GetTicksMs() {
-  return ticks++;
-}
-int DG_GetKey(int* pressed, unsigned char* key){return 0;}
-void DG_SetWindowTitle(const char * title) {}
+extern int * fb;
+void DG_DrawFrame(){
+
+for (int line = 0; line < DOOMGENERIC_RESY; line++)
+    {
+        for (int x = 0; x < DOOMGENERIC_RESX; x++) //+120 for 640
+            fb[line * 640 + x ] = DG_ScreenBuffer[DOOMGENERIC_RESX * line+ x];
+		/*memcpy(
+			(void *)((uintptr_t)(fb) + (fbStride * line) + fbOffsetY + fbOffsetX),
+				(void *)(((uintptr_t)DG_ScreenBuffer) + (DOOMGENERIC_RESX * line * fbBytesPerPixel)),
+			 (fbBytesPerPixel * DOOMGENERIC_RESX)
+		);*/
+	}
+	}
+
+
+
+
 /* --- Configuration --- */
 #define DOOM_WIDTH  320
 #define DOOM_HEIGHT 200
@@ -63,19 +73,7 @@ int counter1;
  */
 
 
-/* Input: return a keycode understood by DoomGeneric. If none, return 0.
- * You can map your platform keycodes to DoomGeneric's expected codes here.
- */
-//int DG_GetKey(void)
-//{
-    // Poll your input driver and map to Doom's keycodes. For example, simple ASCII.
-  //  int code = DG_GetKey();//vb_input_poll();
-   // if (code == 0)
-    //    return 0;
 
-    // Example mapping: if your vb_input_poll returns ASCII, just return it.
-    //return code;/
-//}
 
 int mkdir(){}
 
