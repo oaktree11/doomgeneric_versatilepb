@@ -1,0 +1,30 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "C Launch",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/doomgeneric",
+      "cwd": "${workspaceFolder}",
+      "stopAtEntry": true,
+      "MIMode": "gdb",
+      "externalConsole": false,
+      "miDebuggerPath": "/usr/bin/gdb-multiarch",
+      "miDebuggerArgs": "-iex \"set mi-async\"",
+      "setupCommands": [
+        {
+          "description": "Enable pretty-printing for gdb",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        },
+        {
+          "description": "Run target",
+          "text": "target remote localhost:1234",
+          "ignoreFailures": false
+        }
+      ],
+      "launchCompleteCommand": "exec-run"
+    }
+  ]
+}
