@@ -16,7 +16,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "defines.h"
 #include "string.c"
-#define printf kprintf
+//#define printf kprintf
 
 char *tab = "0123456789ABCDEF";
 int BASE;
@@ -134,6 +134,48 @@ void fatfs_test(void) {
     printf("Mounted filesystem OK\n");
 
    
+}
+#include "ff.h"   // FatFs
+FIL *fil_nos[40];
+int filenospos=3;
+int _open(char *name, int flags, int mode) {
+    FIL *fp = malloc(sizeof(FIL));
+    if (!fp) return -1;
+    //name = "doom1.wad";
+    printf("call open %s\n",name);
+    if (f_open(fp, name, FA_READ) != FR_OK) {
+        free(fp);
+        return -1;
+    }
+    printf("open ok \n");
+    int fd = filenospos;
+    fil_nos[filenospos++]=fp;
+    return fd;   // crude: cast pointer to int as FD
+}
+
+int _read(int fd, char *buf, int len) {
+    FIL *fp = (FIL*)fil_nos[fd];
+    UINT br;
+    if (f_read(fp, buf, len, &br) != FR_OK) return -1;
+    return br;
+}
+#define SEEK_SET	0
+#define SEEK_CUR	1
+#define SEEK_END	2
+
+int _lseek(int fd, int pos, int whence) {
+    FIL *fp = (FIL*)fil_nos[fd];//(FIL*)fd;
+    if (whence == SEEK_SET) f_lseek(fp, pos);
+    else if (whence == SEEK_CUR) f_lseek(fp, f_tell(fp) + pos);
+    else if (whence == SEEK_END) f_lseek(fp, f_size(fp) + pos);
+    return f_tell(fp);
+}
+
+int _close(int fd) {
+    FIL *fp = (FIL*)fil_nos[fd];//(FIL*)fd;
+    f_close(fp);
+    free(fp);
+    return 0;
 }
 
 int main()

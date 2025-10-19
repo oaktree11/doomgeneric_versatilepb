@@ -16,7 +16,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "sdc.h"
 u32 base;
-#define printf kprintf
+//#define printf kprintf
 
 // shared variables between SDC driver and interrupt handler
 volatile char *rxbuf, *txbuf;
@@ -34,7 +34,7 @@ int sdc_handler()
 
   if (status & (1<<21)){ // RXavail: read data
     color = CYAN;
-    printf("SDC RX interrupt: status=%x: ", status);
+    //printf("SDC RX interrupt: status=%x: ", status);
     up = (u32 *)rxbuf;
     // read data from FIFO
     status_err = status & (SDI_STA_DCRCFAIL|SDI_STA_DTIMEOUT|SDI_STA_RXOVERR);
@@ -69,9 +69,9 @@ int sdc_handler()
     txdone = 1;
   }
 
-  printf("write to clear register\n");
+  //printf("write to clear register\n");
   *(u32 *)(base + STATUS_CLEAR) = 0xFFFFFFFF;
-  printf("SDC interrupt handler done\n");
+  //printf("SDC interrupt handler done\n");
 }
 
 int delay()
@@ -97,8 +97,8 @@ int sdc_init()
   // send init command sequence
   do_command(0,  0,   MMC_RSP_NONE);// idle state
   do_command(55, 0,   MMC_RSP_R1);  // ready state  
-//  do_command(41, 1,   MMC_RSP_R3);  // argument must not be zero
-do_command(41, 0x0000FFFF,   MMC_RSP_R3);
+ // do_command(41, 1,   MMC_RSP_R3);  // argument must not be zero
+  do_command(41, 0x0000FFFF,   MMC_RSP_R3);
   do_command(2,  0,   MMC_RSP_R2);  // ask card CID
   do_command(3,  RCA, MMC_RSP_R1);  // assign RCA
   do_command(7,  RCA, MMC_RSP_R1);  // transfer state: must use RCA
@@ -128,7 +128,8 @@ int getSector(int sector, char *buf)
   arg = (sector*512);
   do_command(cmd, arg, MMC_RSP_R1);
   while(rxdone == 0);
-  printf("getSector return\n");
+  //printf("getSector return\n");
+  return 0;
 }
 
 int putSector(int sector, char *buf)
