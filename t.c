@@ -28,6 +28,8 @@ int color;
 #include "vid.c"
 #include "exceptions.c"
 #include "sdc.c"
+#include "diskio.c"
+#include "ff.c"
 
 void copy_vectors(void) {
     extern u32 vectors_start;
@@ -74,11 +76,66 @@ void kc_handler()
           sdc_handler();
        }
     }
-//VIC_CLEAR =0;
 }
 
+
+char arr[512];
+copy(char *p,char *p1, int sz){
+for (int i=0;i<sz;i++){
+  p[i]=p1[i];
+  }
+}
+
+int zero(){
+	for (int i=0;i<512;i++)
+		arr[i]=0;
+}
+
+
 char rbuf[512], wbuf[512];
-char *line[2] = {"11111IS A TEST LINE", "this is a test line"};
+char *line[2] = {"THIS IS A TEST LINE", "this is a test line"};
+//#include "ff.h"      // FatFs header
+#if !FF_FS_NORTC && !FF_FS_READONLY
+DWORD get_fattime (void)
+{
+	
+
+	/* Get local time */
+	//if (!rtc_gettime(&rtc)) return 0;
+   int month = 1;
+   int mday = 1;
+   int hour = 1;
+   int min = 1;
+   int sec = 11;
+   /* Pack date and time into a DWORD variable */
+   return	  ((DWORD)(2025 - 1980) << 25)
+			| ((DWORD)month << 21)
+			| ((DWORD)mday << 16)
+			| ((DWORD)hour << 11)
+			| ((DWORD)min << 5)
+			| ((DWORD)sec << 1);
+}
+#endif
+#define printf uprintf
+FATFS fs;       // Work area (filesystem object)
+FIL fil;        // File object
+DIR dir;        // Directory object
+FILINFO fno;    // File information
+
+void fatfs_test(void) {
+    FRESULT fr;
+
+    // Mount filesystem on drive 0 ("" means default)
+    fr = f_mount(&fs, "", 1);
+    if (fr != FR_OK) {
+        printf("f_mount failed: %d\n", fr);
+        return;
+    }
+    printf("Mounted filesystem OK\n");
+
+   
+}
+
 int main()
 {
   int i, sector, N; 
@@ -105,7 +162,7 @@ int main()
 
    SIC_ENSET |= 1<<3;  // KBD int=3 on SIC
    SIC_ENSET |= 1<<22;  // SDC int=22 on SIC
-   *(kp->base+KCNTL) = 0x12;
+   *(kp->base+KCNTL) = 0x12; // for the keyboard
 
    kprintf("C3.4 start: test TIMER KBD UART SDC interrupt-driven drivers\n");
    timer_init();
@@ -136,29 +193,11 @@ int main()
    color = CYAN;
    printf("test SDC DRIVER\n");
    sdc_init();
-   N = 1;
-   for (sector=0; sector < N; sector++){
-     printf("WRITE sector %d: ", sector);
-     for (i=0; i<512; i++)
-        wbuf[i] = ' ';
-     for (i=0; i<12; i++){
-         kstrcpy(wbuf+i*40, line[sector % 2]);
-     }
-     putSector(sector, wbuf);
+   N = 3;
+   
+   zero();
+fatfs_test();
+   while(1){
+      
    }
-   printf("\n");
-
-   for (sector=0; sector < N; sector++){
-     printf("READ  sector %d\n", sector);
-     for (i=0; i<512; i++)
-        rbuf[i] = ' ';
-
-     getSector(sector, rbuf);
-     for (i=0; i<512; i++){
-       printf("%c", rbuf[i]);
-     }
-     printf("\n");
-   }
-   printf("in while(1) loop: enter keys from KBD or UART\n");
-   while(1);
 }
