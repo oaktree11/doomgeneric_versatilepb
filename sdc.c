@@ -16,7 +16,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "sdc.h"
 u32 base;
-//#define printf kprintf
+#define printf kprintf
 
 // shared variables between SDC driver and interrupt handler
 volatile char *rxbuf, *txbuf;
@@ -109,7 +109,7 @@ int sdc_init()
   printf("done\n");
 }
 
-int getSector(int sector, char *buf)
+int getSector_sdc(int sector, char *buf)
 {
   u32 cmd, arg;
 
