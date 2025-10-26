@@ -64,7 +64,7 @@ void kc_handler()
     }
     if (vicstatus & (1<<12)){ // Bit 12 
          uart_handler(&uart[0]);
-	  kprintf("U0 "); 
+//	  kprintf("U0 "); 
     }
     if (vicstatus & (1<<13)){ // bit 13
          uart_handler(&uart[1]);
@@ -92,6 +92,8 @@ int zero(){
 		arr[i]=0;
 }
 char pp[40];
+
+
 
 #if !FF_FS_NORTC && !FF_FS_READONLY
 DWORD get_fattime (void)
@@ -132,7 +134,7 @@ void* _sbrk(int incr) {
 
     if (new_heap_end >= &stack_top) {
         // Out of memory
-        //printf("out of memory in sbrk incr = %d\n",incr);
+   //     printf("out of memory in sbrk incr = %d\n",incr);
         return (void *) -1;
     }
 
@@ -179,27 +181,129 @@ void timer_init1(void) {
     mmio_write(TIMER0_BASE + TIMER_CONTROL,
         TIMER_CTRL_ENABLE | TIMER_CTRL_32BIT);
 }
+Get_Pos_Data(int *num,int *x,int *y){
+    int ch;
+    *x = 0;
+    *y = 0;
+    *num = 0;
 
-//#endif
-//int got_square,got_esc;
-int keys[300];
-int set_new_pos;
-int prev_key;
-int cnt_prev_key;
-int prev_key_value;
-int DG_GetKey(int* pressed, unsigned char* doomKey){
-  int ch;
- 
-  if ( !upeek(up))
-     return 0;
- cnt_prev_key=0;
-  ch = ugetc(up);
- 
-  *doomKey = ch;
+    /*
+    TODO
+    Read messages from the map viewer. This data will appear on UART1
+    the pos messages consist of movements that are to be executed on a thing or the player. The format is:
 
-  
-  if (ch == 10 || ch == 13)
-     ch= *doomKey = KEY_ENTER;
+    pos: thingnum,x,y,
+
+    the messages have a terminating carrige return i.e. '\n'.
+    The up1 global variable points to the UART 1
+    */
+
+    if (upeek(up1))
+    {
+        ch = ugetc(up1);
+        
+       
+    }
+    return 0;
+}
+
+
+int _Print_thinkers;
+
+int DG_GetKey(int *pressed, unsigned char *doomKey)
+{
+    int ch;
+
+    /*
+        TODO
+        keyboard input to doom
+        doom expects a key press i.e. *pressed =1 followed by a key release indicated by *pressed =0. Thus, DG_GetKey function
+        in the versatilepb port will need to artifically return the key release. This is because the UART input receives
+        the key press but does not have any knowledge of when the key has been released.
+
+        Strategies:
+        1.
+        use another key e.g. t to turn off the previous key.
+        In this case when t is pressed need to set for example for an uparrow:
+        *pressed =0
+        *doomkey = KEY_UPARROW;
+        return 1 from the DG_GetKey.
+
+        2. for a given key press e.g. the space bar doom the function DG_GetKey to return 0 a number of times.
+        For example to simulate a space bar press and release one would on the 6th call (6th call is just arbitary) to DG_GetKey after the initial
+        key press indicate that the space bar has been released:
+
+        1st call to DG_GetKey when the key is pressed return value from DG_GetKey is 1, *pressed = 1, and *doomkey is a key
+        defined in doomkey.h e.g KEY_FIRE
+        2nd call to DG_GetKey the return value from DG_GetKey is 0.  *pressed = 1, and *doomkey is KEY_FIRE
+        ...
+        5th call to DG_GetKey the return value from DG_GetKey is 0, *pressed = 1, and *doomkey is KEY_FIRE
+        6th call to DG_GetKey the return value from DG_GetKey is 1, *pressed = 0, and *doomkey is KEY_FIRE
+
+
+        This behaviour will cause the fire to turn off but will not be responsive.
+        */
+    if (!upeek(up)){
+      
+        return 0;
+    }
+   /* now we have keyboard input */
+   
+    ch = ugetc(up);
+
+    /* Enter P from keyboard moves an imp in front of the player
+     There is an Imp at 3440, -3472 when the game starts up using the newdoom1_1lev.wad.
+     We move this Imp in front of the player
+
+     See the functions  P_Ticker, and P_PrintAllThings in p_tick.c
+     The P_PrintAllThings is a new funtion added to the doom source.
+
+    */
+    if (ch == 'P')
+        _Print_thinkers = 3;
+
+    /*
+   TODO
+   Just for debugging.
+   Print the list of Things in the game */
+   
+    if (ch == 'E')
+        _Print_thinkers = 1;
+   
+    /*TODO
+   Just for debugging.
+   send the list of all Things in the game to the mapviewer */
+    if (ch == 'F')
+        _Print_thinkers = 2;
+    *doomKey = ch;
+
+    /* TODO
+     escape sequences need to be handled. For example
+     an uparrow consists of three keys esc[A. Doom expects the DG_GetKey function to 
+     return 1 and set doomKey to KEY_UPARROW see doomkey.h for an uparrow to move the player forward.
+     */
+
+    
+    
+    if (ch == ' '){
+        /* TODO
+        using the space key as up arrow for now
+        This should be
+        ch = *doomKey = KEY_USE;
+        The KEY_USE is used by doom to open doors etc
+
+        Note:- if you hit space the player will keep moving forward for ever as doom never gets the 
+        *pressed = 0
+        */
+        ch = *doomKey = KEY_UPARROW;
+        //ch = *doomKey = KEY_USE;
+        
+    }
+    if (ch == '#')
+        /* using a # for fire */
+        ch = *doomKey = KEY_FIRE;
+    if (ch == 10 || ch == 13)
+        ch = *doomKey = KEY_ENTER;
    
   *pressed=1;
 uprintf("sending key %d\n",ch);  
@@ -242,38 +346,7 @@ yuy1++;
 }
 int color;
 
-/*** this is for converted images with |h|w|pixels| format ****
-int show(char *p, int startRow)
-{ 
-   int h, w, row, col, pixel; 
-   unsigned char r, g, b;
 
-   h = (*(p+3)<<24) + (*(p+2)<<16) + (*(p+1)<<8) + *p;
-   p += 4;
-   w = (*(p+3)<<24) + (*(p+2)<<16) + (*(p+1)<<8) + *p;
-   p += 4;          // skip over 8 byes
-
-   uprintf("h=%d w=%d\n", h, w);
-   //  if (h > 480) h = 480;
-   //if (w > 640) w = 640;
-
-   row = startRow; col = 0;
-   while(1){
-     r = *p; g = *(p+1); b = *(p+2);
-     pixel = (b<<16) + (g<<8) + r;
-     //     fb[row*640 + col] = pixel;
-     fb[row*WIDTH + col] = pixel;
-     p += 3;         // advance p by 3 bytes
-     col++;
-     if (col >= w){  // to line width of jpg image
-        col = 0;
-        row++;
-     }
-     if (row >= h+startRow)
-        break;
-   }
-}
-*******************************************/
 void DG_SetWindowTitle(const char * title)
 {
   uprintf(up,"title %s",title);
@@ -295,7 +368,6 @@ void fatfs_test(void) {
     }
     printf("Mounted filesystem OK\n");
 
-    
 }
 #include "ff.h"   // FatFs
 FIL *fil_nos[40];
@@ -347,10 +419,11 @@ int main()
    char *argv[10];
    argv[0]="hello";
    argv[1]="-iwad";
-   argv[2]="doom1.wad";
+//   argv[2]="doom1.wad";
   // argv[3]="-file";
   
- //  argv[2]= "new_1lev.wad";
+  /* use this wad file in sdimage*/
+   argv[2]= "new_1lev.wad";
   
    
    
@@ -388,7 +461,7 @@ int i, sector, N;
    //timer_start(0);
     sdc_init();
    uprintf("enter a key from this UART : ");
-   
+   //uprintf1("enter a key from this UART : ");
    fatfs_test();
    /*for (int yu=0;yu<40;yu++){
          if (!malloc(yu*10) )

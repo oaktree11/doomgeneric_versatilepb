@@ -81,12 +81,13 @@ void uart_handler(UART *up)
   u8 mask, mis;
   mask = *(up->base + MASK);  // read MASK register
   mis = *(up->base + MIS);  // read MIS register
-  //kprintf("uart%d interrupt mask=%x MIS=%x\n", up->n, mask, mis);
+ // kprintf("uart%d interrupt mask=%x MIS=%x\n", up->n, mask, mis);
   if (mis & 0x10)
     do_rx(up);
   if (mis & 0x20)
     do_tx(up);
 }
+int got_square,got_esc;
 
 int do_rx(UART *up)
 {
@@ -96,9 +97,32 @@ int do_rx(UART *up)
   while(!(*(up->base + UFR) & 0x40));
   c = *(up->base+UDR);
 
- // kprintf("rx interrupt: %c\n", c);
+  //kprintf("rx interrupt: %c\n", c);
   //if (c==0xD)
     // kprintf("\n");
+  if (up == &uart[0]){
+  if (c == 27){
+     got_esc=1;
+     return 0;
+     }
+  if (c=='[' && got_esc){
+     got_square =1;
+     got_esc=0;
+     return 0;
+     }
+  got_esc=0;
+  if (got_square){
+     got_square =0;
+     if (c=='A')
+        c = KEY_UPARROW;
+     if (c=='B')
+        c = KEY_DOWNARROW;
+     if (c=='C')   
+      c = KEY_RIGHTARROW;
+     if (c=='D')   
+      c = KEY_LEFTARROW;
+      }
+    }
   up->inbuf[up->inhead++] = c; 
   up->inhead %= SBUFSIZE;
   up->indata++; up->inroom--;
@@ -109,7 +133,8 @@ int do_rx(UART *up)
 int do_tx(UART *up)
 {
   char c;
-  //kprintf("TX interrupt\n");
+  
+ // kprintf("TX interrupt\n");
   if (up->outdata <= 0){
     // disable TX interrupt; return
     *(up->base+MASK) = 0x10; // mask out TX interrupt
@@ -163,7 +188,8 @@ int uputc(UART *up, char c)
   int i = *(up->base+UFR);         // read FR
   while( *(up->base+UFR) & 0x20 ); // loop while FR=TXF  
   *(up->base+UDR) = (int)c;        // write c to DR
-  UART0_IMSC |= 0x30; // 0000 0000: bit5=TX mask bit4=RX mask
+  //UART0_IMSC |= 0x30; // 0000 0000: bit5=TX mask bit4=RX mask
+   *(up->base+MASK) |= 0x30;
   up->txon = 1;
 }
 
@@ -209,7 +235,8 @@ int urpu(UART *up, int x)
      c = tab[x % 10];
      urpu(up, x / 10);
   }
-  uputc(up, c);
+  if (c) // PAUL fix zeros in ouput
+     uputc(up, c);
 }
 
 int uprintu(UART *up, int x)
@@ -285,4 +312,61 @@ int uprintf(char *fmt, ...)
     cp++; ip++;
   }
 }
+int uprintf1(char *fmt, ...)
+{
+  int *ip;
+  char *cp;
+  cp = fmt;
+  ip = (int *)&fmt + 1;
 
+  UART *up = &uart[1];
+
+  while(*cp){
+    if (*cp != '%'){
+      uputc(up, *cp);
+      if (*cp=='\n')
+	uputc(up, '\r');
+      cp++;
+      continue;
+    }
+    cp++;
+    switch(*cp){
+    case 'c': uputc(up, (char)*ip);      break;
+    case 's': uprints(up, (char *)*ip);   break;
+    case 'd': uprinti(up, *ip);           break;
+    case 'u': uprintu(up, *ip);           break;
+    case 'x': uprintx(up, *ip);  break;
+    }
+    cp++; ip++;
+  }
+}
+#undef printf
+int printf(char *fmt, ...)
+{
+  int *ip;
+  char *cp;
+  cp = fmt;
+  ip = (int *)&fmt + 1;
+
+  UART *up = &uart[0];
+
+  while(*cp){
+    if (*cp != '%'){
+      uputc(up, *cp);
+      if (*cp=='\n')
+	uputc(up, '\r');
+      cp++;
+      continue;
+    }
+    cp++;
+    switch(*cp){
+    case 'c': uputc(up, (char)*ip);      break;
+    case 's': uprints(up, (char *)*ip);   break;
+    case 'd': uprinti(up, *ip);           break;
+    case 'u': uprintu(up, *ip);           break;
+    case 'x': uprintx(up, *ip);  break;
+    }
+    cp++; ip++;
+  }
+}
+#define printf uprintf
