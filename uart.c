@@ -100,29 +100,7 @@ int do_rx(UART *up)
   //kprintf("rx interrupt: %c\n", c);
   //if (c==0xD)
     // kprintf("\n");
-  if (up == &uart[0]){
-  if (c == 27){
-     got_esc=1;
-     return 0;
-     }
-  if (c=='[' && got_esc){
-     got_square =1;
-     got_esc=0;
-     return 0;
-     }
-  got_esc=0;
-  if (got_square){
-     got_square =0;
-     if (c=='A')
-        c = KEY_UPARROW;
-     if (c=='B')
-        c = KEY_DOWNARROW;
-     if (c=='C')   
-      c = KEY_RIGHTARROW;
-     if (c=='D')   
-      c = KEY_LEFTARROW;
-      }
-    }
+  
   up->inbuf[up->inhead++] = c; 
   up->inhead %= SBUFSIZE;
   up->indata++; up->inroom--;
@@ -189,8 +167,9 @@ int uputc(UART *up, char c)
   while( *(up->base+UFR) & 0x20 ); // loop while FR=TXF  
   *(up->base+UDR) = (int)c;        // write c to DR
   //UART0_IMSC |= 0x30; // 0000 0000: bit5=TX mask bit4=RX mask
-   *(up->base+MASK) |= 0x30;
   up->txon = 1;
+  *(up->base+MASK) |= 0x30;
+ 
 }
 
 int ugets(UART *up, char *s)

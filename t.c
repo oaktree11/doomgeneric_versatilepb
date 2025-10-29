@@ -218,7 +218,7 @@ int DG_GetKey(int *pressed, unsigned char *doomKey)
         TODO
         keyboard input to doom
         doom expects a key press i.e. *pressed =1 followed by a key release indicated by *pressed =0. Thus, DG_GetKey function
-        in the versatilepb port will need to artifically return the key release. This is because the UART input receives
+        in the versatilepb port will need to artificially return the key release. This is because the UART input receives
         the key press but does not have any knowledge of when the key has been released.
 
         Strategies:
