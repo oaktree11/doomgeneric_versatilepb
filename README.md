@@ -1,14 +1,13 @@
 # doomgeneric_versatilepb
 
-The code at in this github repository was used as the basis of the port to doom
-to the versatilebp on QEMU:  
+Port of Doom to the versatilebp board on QEMU  
+The code at in this github repository was used as the basis of the port:  
 
 https://github.com/ozkl/doomgeneric.git  
 
 
 filesystem - added in code for FAT filesystem and malloc mods  
 buffered I/O - added in code for buffered I/O  
-use
 
 Use mk to build the versatilebp firmware. mk invokes make.  
 
