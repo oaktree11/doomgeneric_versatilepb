@@ -21,10 +21,8 @@ umount /mnt/sdcard_test
 ### If you wish to modify or list files in the file system then do
 sudo mount -o loop sdimage /mnt/sdcard_test 
 
-## TODO implement writes and a corresponding test case
+## TODO  create a test case
 ### there is a #define of printf to uprintf in the code your 
 #include <stdio.h> 
 ### needs to be after that #define
-You will need to: 
-1. write the code for _write (does not exist) in t.c 
-2. modify the _open function to handle open for writing.
+

@@ -100,7 +100,9 @@ int sdc_init()
  // do_command(41, 1,   MMC_RSP_R3);  // argument must not be zero
   do_command(41, 0x0000FFFF,   MMC_RSP_R3);
   do_command(2,  0,   MMC_RSP_R2);  // ask card CID
-  do_command(3,  RCA, MMC_RSP_R1);  // assign RCA
+ // do_command(3,  RCA, MMC_RSP_R1);  // assign RCA
+  do_command(3,  0,   MMC_RSP_R1);   // (R6 is more correct, but R1 works in practice)
+  RCA = (*(u32 *)(base + RESPONSE0)) & 0xFFFF0000;
   do_command(7,  RCA, MMC_RSP_R1);  // transfer state: must use RCA
   do_command(16, 512, MMC_RSP_R1);  // set data block length
 
@@ -109,7 +111,7 @@ int sdc_init()
   printf("done\n");
 }
 
-int getSector(int sector, char *buf)
+int getSector_sdc(int sector, char *buf)
 {
   u32 cmd, arg;
 
@@ -150,5 +152,6 @@ int putSector(int sector, char *buf)
   // write 0x91=|9|0001|=|9|DMA=0,BLOCK=0,0=Host->Card, Enable
   *(u32 *)(base + DATACTRL) = 0x91; // Host->card
   while(txdone == 0);
-  printf("putSector return\n");
+  //printf("putSector return\n");
+  return 0;
 }

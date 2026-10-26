@@ -76,6 +76,7 @@ void kc_handler()
           sdc_handler();
        }
     }
+    VIC_VADDR = 0;
 }
 
 
@@ -96,7 +97,9 @@ extern char stack_top;   /* defined by linker */
 static char *heap_end;
 
 void* _sbrk(int incr) {
- //printf("sbrk incr = %d\n",incr);
+
+// printf("sbrk incr = %d\n",incr);
+
     if (heap_end == 0) {
         heap_end = &_end;
     }
@@ -106,7 +109,7 @@ void* _sbrk(int incr) {
 
     if (new_heap_end >= &stack_top) {
         // Out of memory
-        printf("out of memory in sbrk incr = %d\n",incr);
+  //      printf("out of memory in sbrk incr = %d\n",incr);
         return (void *) -1;
     }
 
@@ -139,6 +142,8 @@ DWORD get_fattime (void)
 			| ((DWORD)sec << 1);
 }
 #endif
+#include <stdio.h>
+#include <fcntl.h>
 #define printf uprintf
 FATFS fs;       // Work area (filesystem object)
 FIL fil;        // File object
@@ -164,13 +169,22 @@ int filenospos=3;
 int _open(char *name, int flags, int mode) {
     FIL *fp = malloc(sizeof(FIL));
     if (!fp) return -1;
+    int wri=0;
     //name = "doom1.wad";
     printf("call open %s\n",name);
+    if (flags& O_CREAT){
+        wri =1;
+        if (f_open(fp, name, FA_WRITE | FA_CREATE_ALWAYS) != FR_OK) {
+        free(fp);
+        return -1;
+        }
+    }
+    else
     if (f_open(fp, name, FA_READ) != FR_OK) {
         free(fp);
         return -1;
     }
-    printf("open ok \n");
+    printf("open ok %d %x %x\n",wri,flags,O_CREAT);
     int fd = filenospos;
     fil_nos[filenospos++]=fp;
     return fd;   // crude: cast pointer to int as FD
@@ -180,6 +194,15 @@ int _read(int fd, char *buf, int len) {
     FIL *fp = (FIL*)fil_nos[fd];
     UINT br;
     if (f_read(fp, buf, len, &br) != FR_OK) return -1;
+    return br;
+}
+
+int _write(int fd, char *buf, int len) {
+    FIL *fp = (FIL*)fil_nos[fd];
+    UINT br;
+    //uprintf("write %s\n",buf);
+    if (fd <3) return;
+    if (f_write(fp, buf, len, &br) != FR_OK) return -1;
     return br;
 }
 #define SEEK_SET	0
@@ -211,8 +234,8 @@ int main()
    row = col = 0; 
    fbuf_init();
    kbd_init();
-   uart_init();
-   up = &uart[0];
+    up = &uart[0];
+   uart_init(up);
    kp = &kbd;
 
    /* enable timer0,1, uart0,1 SIC interrupts */
@@ -262,7 +285,22 @@ int main()
    
    zero();
 fatfs_test();
+FILE * fp;
+  fp = fopen("tes.txt","w");
+  fprintf(fp,"hello world");
+  fclose(fp);
+  fp = fopen("tes.txt","r");
+  for (int u=0;u<8;u++){
+     int ch = fgetc(fp);
+     uprintf("%c ",ch);
+     }
+  fclose(fp);  
+  uprintf("here\n"); 
    while(1){
-      
+    
+ if (upeek(up)){
+   int key = ugetc(up);
+ uprintf("key %d\n",key);
+ }     
    }
 }

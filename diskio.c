@@ -49,7 +49,7 @@ DRESULT disk_read (BYTE pdrv, BYTE *buff, LBA_t sector, UINT count)
         return RES_PARERR;
 
     for (UINT i = 0; i < count; i++) {
-        if (getSector(sector + i, buff + i*512) != 0)
+        if (getSector_sdc(sector + i, buff + i*512) != 0)
             return RES_ERROR;
     }
     return RES_OK;
