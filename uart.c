@@ -53,7 +53,7 @@ typedef volatile struct uart{
 }UART;
 
 UART uart[4];     // 4 UArt structures
-
+#ifdef old
 int uart_init()
 {
   int i;
@@ -75,6 +75,35 @@ int uart_init()
   }  
   uart[3].base = (char *)(0x10009000); // uart3 at 0x10009000
 }
+#endif
+
+int uart_init()
+{
+  int i;
+  UART *up;
+  for (i = 0; i < 4; i++) {
+    up = &uart[i];
+    up->base = (char *)(0x101f1000 + i * 0x1000);
+
+    /* --- proper PL011 bring-up (needed for QEMU ≥ ~8/9 and real HW) --- */
+    *(volatile u32 *)(up->base + 0x30) = 0;          /* UARTCR = 0 (disable) */
+    *(volatile u32 *)(up->base + 0x24) = 1;          /* IBRD */
+    *(volatile u32 *)(up->base + 0x28) = 0;          /* FBRD */
+    *(volatile u32 *)(up->base + 0x2C) = 0x60;       /* LCRH: 8-bit, FIFO off */
+    *(volatile u32 *)(up->base + 0x44) = 0x7FF;      /* ICR: clear all */
+    *(volatile u32 *)(up->base + 0x30) = 0x301;      /* UARTCR: UARTEN|TXE|RXE */
+    *(volatile u32 *)(up->base + 0x38) = 0x10;       /* IMSC: RX only for now */
+
+    up->n = i;
+    up->indata = up->inhead = up->intail = 0;
+    up->inroom = SBUFSIZE;
+    up->outdata = up->outhead = up->outtail = 0;
+    up->outroom = SBUFSIZE;
+    up->txon = 0;
+  }
+  uart[3].base = (char *)(0x10009000);
+  return 0;
+}
 
 void uart_handler(UART *up) 
 {
@@ -86,6 +115,7 @@ void uart_handler(UART *up)
     do_rx(up);
   if (mis & 0x20)
     do_tx(up);
+  *(up->base + 0x44) = mis & 0x30;   /* clear the sources we just handled */
 }
 
 int do_rx(UART *up)
@@ -148,14 +178,26 @@ int ugetc(UART *up)
 // TO DO: UART outputs should be intertupt-driven also 
 int uputc(UART *up, char c)
 {
-  //kprintf("uputc %c ", c);
-  if (up->txon){ // if TX is on => still transmitting, enter c into outbuf[]
-    up->outbuf[up->outhead++] = c;
-    up->outhead %= 128;
-    int_off();
-     up->outdata++; up->outroom--;
-    int_on();
-    return;
+
+/* Always push the first few characters polled – newer QEMU is picky
+     about TX interrupt enable timing right after UARTCR is set. */
+  if (up->outdata == 0 && !up->txon) {
+    while (*(up->base + UFR) & 0x20)
+      ;
+    *(up->base + UDR) = (int)c;
+    return 1;
+  }
+
+  /* original queue + TX-interrupt path unchanged */
+  if (up->txon) {
+    if (up->outdata < SBUFSIZE) {
+      up->outbuf[up->outhead++] = c;
+      up->outhead %= SBUFSIZE;
+      int_off();
+      up->outdata++; up->outroom--;
+      int_on();
+    }
+    return 1;
   }
 
   // txon==0 means TX is off => output c & enable TX interrupt
