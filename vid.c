@@ -63,11 +63,9 @@ int fbuf_init()
        inten[i]=0x8F008F00;
   }
   ******** yet to figure out HOW TO use these palletes *************/
-<<<<<<< HEAD
-  fb = (int *)fb1;  // at 1MB area; enough for 800x600 SVGA
-=======
+
   fb = (int *)fb1;//(1*1024*1024);  // at 1MB area; enough for 800x600 SVGA
->>>>>>> 627b84a (updates for newer qemu)
+
   font = fonts0;              // use fonts0 for char bit patterns 
 
   // for (x = 0; x < (800 * 600); ++x) // for one BAND
