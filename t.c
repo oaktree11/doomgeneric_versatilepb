@@ -41,7 +41,7 @@ void copy_vectors(void) {
        *vectors_dst++ = *vectors_src++;
 }
 int kprintf(char *fmt, ...);
-void timer_handler();
+void timer_handler(int);
 extern int sdc_handler();
 
 // IRQ interrupts handler entry point
@@ -224,6 +224,39 @@ int _close(int fd) {
     return 0;
 }
 
+
+/* File status: report a character device. */
+int _fstat(int file, struct stat *st)
+{
+    (void)file;
+
+    
+    return 0;
+}
+
+/* No process ID on bare-metal firmware. */
+int _getpid(void)
+{
+    return 1;
+}
+
+/* Indicate that a file descriptor is not a terminal. */
+int _isatty(int file)
+{
+    (void)file;
+    return 0;
+}
+
+/* No operating-system process signalling. */
+int _kill(int pid, int sig)
+{
+    (void)pid;
+    (void)sig;
+
+   
+    return -1;
+}
+
 int main()
 {
   int i, sector, N; 
@@ -235,7 +268,7 @@ int main()
    fbuf_init();
    kbd_init();
     up = &uart[0];
-   uart_init(up);
+   uart_init();
    kp = &kbd;
 
    /* enable timer0,1, uart0,1 SIC interrupts */
@@ -287,7 +320,7 @@ int main()
 fatfs_test();
 FILE * fp;
   fp = fopen("tes.txt","w");
-  fprintf(fp,"hello world");
+  fprintf(fp,"it is a hello world");
   fclose(fp);
   fp = fopen("tes.txt","r");
   for (int u=0;u<8;u++){
