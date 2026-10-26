@@ -39,7 +39,7 @@ int sdc_handler()
     // read data from FIFO
     status_err = status & (SDI_STA_DCRCFAIL|SDI_STA_DTIMEOUT|SDI_STA_RXOVERR);
 
-    while (!status_err && count) {
+    while (!status_err && count>0) {
       //printf("R%d ", count);
       *(up) = *(u32 *)(base + FIFO);
        up++; 
@@ -53,7 +53,7 @@ int sdc_handler()
   }
   else if (status & (1<<18)){ // TXempty
     color = YELLOW;
-    printf("\nSDC TX interrupt: status=%x: ", status);
+    //printf("\nSDC TX interrupt: status=%x: ", status);
     up = (u32 *)txbuf;
     status_err = status & (SDI_STA_DCRCFAIL | SDI_STA_DTIMEOUT);
 
@@ -88,7 +88,7 @@ int do_command(int cmd, int arg, int resp)
 
 int sdc_init()
 {
-  u32 RCA = (u32)0x45670000; // QEMU's hard-coded RCA
+  u32 RCA; // NOTE: no longer hard-coded -- see below
   base    = (u32)0x10005000; // PL180 base address
   printf("sdc_init : ");
   *(u32 *)(base + POWER) = (u32)0xBF; // power on
@@ -97,11 +97,12 @@ int sdc_init()
   // send init command sequence
   do_command(0,  0,   MMC_RSP_NONE);// idle state
   do_command(55, 0,   MMC_RSP_R1);  // ready state  
- // do_command(41, 1,   MMC_RSP_R3);  // argument must not be zero
-  do_command(41, 0x0000FFFF,   MMC_RSP_R3);
+//  do_command(41, 1,   MMC_RSP_R3);  // argument must not be zero
+do_command(41, 0x0000FFFF,   MMC_RSP_R3);
   do_command(2,  0,   MMC_RSP_R2);  // ask card CID
-  do_command(3,  RCA, MMC_RSP_R1);  // assign RCA
-  do_command(7,  RCA, MMC_RSP_R1);  // transfer state: must use RCA
+  do_command(3,  0,   MMC_RSP_R1);  // CMD3: card PUBLISHES its own RCA;
+  RCA = (*(u32 *)(base + RESPONSE0)) & 0xFFFF0000;
+  do_command(7,  RCA, MMC_RSP_R1);  // transfer state: must use actual RCA
   do_command(16, 512, MMC_RSP_R1);  // set data block length
 
   // set interrupt MASK0 registers bits = RxAvail|TxEmpty
@@ -128,8 +129,7 @@ int getSector(int sector, char *buf)
   arg = (sector*512);
   do_command(cmd, arg, MMC_RSP_R1);
   while(rxdone == 0);
-  //printf("getSector return\n");
-  return 0;
+  printf("getSector return\n");
 }
 
 int putSector(int sector, char *buf)
@@ -150,5 +150,5 @@ int putSector(int sector, char *buf)
   // write 0x91=|9|0001|=|9|DMA=0,BLOCK=0,0=Host->Card, Enable
   *(u32 *)(base + DATACTRL) = 0x91; // Host->card
   while(txdone == 0);
-  printf("putSector return\n");
+  //printf("putSector return\n");
 }

@@ -63,12 +63,12 @@ void copy_vectors(void) {
        *vectors_dst++ = *vectors_src++;
 }
 int kprintf(char *fmt, ...);
-void timer_handler();
+void timer_handler(int );
 extern int sdc_handler();
 
 // IRQ interrupts handler entry point
 //void __attribute__((interrupt)) kc_handler()
-void kc_handler()
+void irq_handler()
 {
     int vicstatus, sicstatus;
     int ustatus, kstatus;
@@ -98,6 +98,7 @@ void kc_handler()
           sdc_handler();
        }
     }
+     VIC_VADDR = 0;
 }
 
 
@@ -155,9 +156,68 @@ void fatfs_test(void) {
     }
     printf("Mounted filesystem OK\n");
 
-   
+    // List files in root directory
+    fr = f_opendir(&dir, "/");
+    if (fr == FR_OK) {
+        printf("Directory listing:\n");
+        for (;;) {
+            fr = f_readdir(&dir, &fno);
+            if (fr != FR_OK || fno.fname[0] == 0) break; // end
+            if (fno.fattrib & AM_DIR) {
+                printf("  <DIR>  %s\n", fno.fname);
+            } else {
+                printf("  %8lu  %s\n", (unsigned long)fno.fsize, fno.fname);
+            }
+        }
+        f_closedir(&dir);
+    } else {
+        printf("f_opendir failed: %d\n", fr);
+    }
+
+    // Open and read test.txt
+    fr = f_open(&fil, "T1.C", FA_READ);
+    if (fr == FR_OK) {
+        printf("\nContents of test.txt:\n");
+        char buf[64];
+        UINT br;
+        do {
+            fr = f_read(&fil, buf, sizeof(buf)-1, &br);
+            if (fr != FR_OK) {
+                printf("f_read failed: %d\n", fr);
+                break;
+            }
+            buf[br] = '\0'; // null terminate for printf
+            printf("%s", buf);
+        } while (br > 0);
+        f_close(&fil);
+        printf("\n-- end of file --\n");
+    } else {
+        printf("f_open failed: %d\n", fr);
+    }
+}
+int _open(char *name, int flags, int mode) {
+    
+    return -1;   
 }
 
+int _read(int fd, char *buf, int len) {
+    
+    return -1;
+}
+
+int _write(int fd, char *buf, int len) {
+   
+    return -1;
+}
+int _lseek(int fd, int pos, int whence) {
+    
+    return -1;
+}
+
+int _close(int fd) {
+    
+    return -1;
+}
 int main()
 {
   int i, sector, N; 
@@ -168,8 +228,9 @@ int main()
    row = col = 0; 
    fbuf_init();
    kbd_init();
-   uart_init();
    up = &uart[0];
+   uart_init(up);
+   
    kp = &kbd;
 
    /* enable timer0,1, uart0,1 SIC interrupts */
@@ -220,6 +281,9 @@ int main()
    zero();
 fatfs_test();
    while(1){
-      
+     if (upeek(up)){
+   int key = ugetc(up);
+ uprintf("key %d\n",key);
+ } 
    }
 }

@@ -1,173 +1,177 @@
-/********************************************************************
-Copyright 2010-2017 K.C. Wang, <kwang@eecs.wsu.edu>
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+/* uart.c - interrupt-driven PL011 with RX/TX queues */
+#include "defines.h"
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+#define UDR   0x00
+#define UFR   0x18
+#define LCRH  0x2C
+#define IMSC  0x38
+#define MIS   0x40
+#define ICR   0x44
 
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-********************************************************************/
-
-// uart.c file
-/************************************
-UART0 base address: 0x101f1000;
-UART1 base address: 0x101f2000;
-UART2 base address: 0x101f3000;
-UART3 base address: 0x10009000;
-
-// UART's flag register at 0x18
-//  7    6    5    4    3    2   1   0
-// TXFE RXFF TXFF RXFE BUSY
-// TX FULL : 0x20
-// TX empty: 0x80
-// RX FULL : 0x40
-// RX empty: 0x10
-// BUSY=1 :  0x08
-***********************************/
-int kprintf(char *fmt, ...);
-
-/******** bytes offsets: for char *base ********/
-#define UDR  0x00
-#define UDS  0x04
-#define UFR  0x18
-#define CNTL 0x2C
-#define MASK 0x38
-#define MIS  0x40 
 #define SBUFSIZE 128
 
-typedef volatile struct uart{
-  char *base;     // base address; as char *
-  u32 n;          // uart number 0-3
-
-  char inbuf[SBUFSIZE];
-  int indata, inroom, inhead, intail;
-  char outbuf[SBUFSIZE];
-  int outdata, outroom, outhead, outtail;
-  int txon; // 1=TX interrupt is on
-}UART;
-
-UART uart[4];     // 4 UArt structures
-
-int uart_init()
+typedef volatile struct {
+    char *base;
+    char inbuf[SBUFSIZE];
+    int  indata, inhead, intail;
+    char outbuf[SBUFSIZE];
+    int  outdata, outhead, outtail;
+    int  txon;
+} UART;
+int kprintf(char *fmt, ...);
+UART uart0;
+UART uart[4];    
+extern void int_off(void);
+extern void int_on(void);
+#define UARTCR  0x30   /* Control Register */
+void uart_init(UART *up)
 {
-  int i;
-  UART *up;
-  for (i=0; i<4; i++){   // uart0 to uart2 are adjacent 
-    up = &uart[i];
-    up->base = (char *)(0x101f1000 + i*0x1000);
+    //UART *up = &uart0;
+    if (up == &uart[0])
+    up->base = (char *)UART0_BASE_ADDR;
+    else
+       up->base = (char *)UART1_BASE_ADDR;
+    /* Disable UART while we configure it */
+    *(volatile u32 *)(up->base + UARTCR) = 0;
 
-    *(up->base+0x2C) &= ~0x10; // disable FIFO
-    *(up->base+0x38) |= 0x30;
-    
-    up->n = i;
+    /* Baud rate (QEMU mostly ignores it, but real HW / strict models want it) */
+    *(volatile u32 *)(up->base + 0x24) = 1;     /* IBRD */
+    *(volatile u32 *)(up->base + 0x28) = 0;     /* FBRD */
+
+    /* 8-bit, no parity, 1 stop, FIFO disabled */
+    *(volatile u32 *)(up->base + LCRH) = 0x60;  /* WLEN=8, FEN=0 */
+
+    /* Clear any pending interrupts */
+    *(volatile u32 *)(up->base + ICR) = 0x7FF;
+
+    /* Enable UART + TX + RX */
+    *(volatile u32 *)(up->base + UARTCR) = 0x301;  /* UARTEN|TXE|RXE */
+
+    /* Only RX interrupt at start */
+    *(volatile u32 *)(up->base + IMSC) = 0x10;
+
     up->indata = up->inhead = up->intail = 0;
-    up->inroom = SBUFSIZE;
-
     up->outdata = up->outhead = up->outtail = 0;
-    up->outroom = SBUFSIZE;
     up->txon = 0;
-  }  
-  uart[3].base = (char *)(0x10009000); // uart3 at 0x10009000
 }
 
-void uart_handler(UART *up) 
+static void do_rx(UART *up)
 {
-  u8 mask, mis;
-  mask = *(up->base + MASK);  // read MASK register
-  mis = *(up->base + MIS);  // read MIS register
-  //kprintf("uart%d interrupt mask=%x MIS=%x\n", up->n, mask, mis);
-  if (mis & 0x10)
-    do_rx(up);
-  if (mis & 0x20)
-    do_tx(up);
+    char c;
+    /* data already present */
+    if (*(volatile u32 *)(up->base + UFR) & 0x10)  /* RXFE */
+        return;
+
+    c = *(volatile u32 *)(up->base + UDR);
+
+    if (up->indata < SBUFSIZE) {
+        up->inbuf[up->inhead++] = c;
+        up->inhead %= SBUFSIZE;
+        up->indata++;
+    }
 }
 
-int do_rx(UART *up)
+static void do_tx(UART *up)
 {
-  char c;
-  color = GREEN;
+    char c;
 
-  while(!(*(up->base + UFR) & 0x40));
-  c = *(up->base+UDR);
+    if (up->outdata <= 0) {
+        /* Nothing left – turn TX interrupt off, leave RX on */
+        *(volatile u32 *)(up->base + IMSC) &= ~0x20;
+        up->txon = 0;
+        return;
+    }
 
- // kprintf("rx interrupt: %c\n", c);
-  //if (c==0xD)
-    // kprintf("\n");
-  up->inbuf[up->inhead++] = c; 
-  up->inhead %= SBUFSIZE;
-  up->indata++; up->inroom--;
+    c = up->outbuf[up->outtail++];
+    up->outtail %= SBUFSIZE;
 
-  color=RED;
+    /* Wait until there is space (should be immediate with FIFO off) */
+    while (*(volatile u32 *)(up->base + UFR) & 0x20)
+        ;
+    *(volatile u32 *)(up->base + UDR) = (u32)c;
+    up->outdata--;
 }
 
-int do_tx(UART *up)
+void uart_handler(UART *up)
 {
-  char c;
-  //kprintf("TX interrupt\n");
-  if (up->outdata <= 0){
-    // disable TX interrupt; return
-    *(up->base+MASK) = 0x10; // mask out TX interrupt
-    up->txon = 0;
-    return;
-  }
-  c = up->outbuf[up->outtail++];
-  up->outtail %= 128;
+    //UART *up = &uart0;
+    u32 mis = *(volatile u32 *)(up->base + MIS);
+    if (mis & 0x10) {
+        while (!(*(volatile u32 *)(up->base + UFR) & 0x10))  // RXFE
+            do_rx(up);
+    }
+   
+    if (mis & 0x20)
+        do_tx(up);
 
-  while( *(up->base+UFR) & 0x20 ); // loop while FR=TXF  
-  *(up->base+UDR) = (int)c;        // write c to DR
-  
-  up->outdata--; up->outroom++;
+    /* clear the sources we handled */
+    *(volatile u32 *)(up->base + ICR) = mis & 0x30;
 }
-       
+
+/* non-blocking check */
+int uart_rx_ready(void)
+{
+    return uart0.indata > 0;
+}
 upeek(UART *up){
 return up->indata>0;
 }
 
-int ugetc(UART *up)
+char ugetc(UART *up)
 {
-  char c;
-  while(up->indata <= 0); // loop until up->data > 0 READONLY, no need for lock
-
-  c = up->inbuf[up->intail++];
-  up->intail %= SBUFSIZE;
-
-  // updating variables: must disable interrupts
-  int_off();
-    up->indata--; up->inroom++;
-  int_on();
-  return c;
-}
-
-
-// TO DO: UART outputs should be intertupt-driven also 
-int uputc(UART *up, char c)
-{
-  //kprintf("uputc %c ", c);
-  if (up->txon){ // if TX is on => still transmitting, enter c into outbuf[]
-    up->outbuf[up->outhead++] = c;
-    up->outhead %= 128;
+    //UART *up = &uart0;
+    char c;
+    while (up->indata <= 0)
+        ;
+    c = up->inbuf[up->intail++];
+    up->intail %= SBUFSIZE;
     int_off();
-     up->outdata++; up->outroom--;
+    up->indata--;
     int_on();
-    return;
-  }
-
-  // txon==0 means TX is off => output c & enable TX interrupt
-  // PL011 TX is riggered only if write char, else no TX interrupt
-  int i = *(up->base+UFR);         // read FR
-  while( *(up->base+UFR) & 0x20 ); // loop while FR=TXF  
-  *(up->base+UDR) = (int)c;        // write c to DR
-  UART0_IMSC |= 0x30; // 0000 0000: bit5=TX mask bit4=RX mask
-  up->txon = 1;
+    return c;
 }
 
-int ugets(UART *up, char *s)
+void uputc(UART *up,char c)
+{
+    //UART *up = &uart0;
+
+    if (up->txon) {
+        /* Already transmitting – just queue */
+        if (up->outdata < SBUFSIZE) {
+            up->outbuf[up->outhead++] = c;
+            up->outhead %= SBUFSIZE;
+            int_off();
+            up->outdata++;
+            int_on();
+        }
+        return;
+    }
+
+    /*
+     * First character of a new burst:
+     * write it directly (polled) so it is guaranteed to leave,
+     * then enable the TX interrupt for any subsequent queued chars.
+     */
+    while (*(volatile u32 *)(up->base + UFR) & 0x20)
+        ;
+    *(volatile u32 *)(up->base + UDR) = (u32)c;
+
+    /* If the software queue already has data, enable TX IRQ */
+    if (up->outdata > 0) {
+        *(volatile u32 *)(up->base + IMSC) |= 0x20;
+        up->txon = 1;
+    }
+}
+
+void uputs(UART *up,const char *s)
+{
+    while (*s) {
+        if (*s == '\n')
+            uputc(up,'\r');
+        uputc(up,*s++);
+    }
+}
+void ugets(UART *up,char *s)
 {
   //kprintf("%s", "in ugets: ");
   while ((*s = (char)ugetc(up)) != '\r'){
@@ -176,113 +180,66 @@ int ugets(UART *up, char *s)
   }
  *s = 0;
 }
+/* simple printf that goes to UART (and also used by kprintf on video) */
+static const char *hex = "0123456789ABCDEF";
 
-int uprints(UART *up, char *s)
+void uprintf(const char *fmt, ...)
 {
-  while(*s)
-    uputc(up, *s++);}
-
-int urpx(UART *up, int x)
-{
-  char c;
-  if (x){
-     c = tab[x % 16];
-     urpx(up, x / 16);
-  }
-  uputc(up, c);
-}
-
-int uprintx(UART *up, int x)
-{
-  uprints(up, "0x");
-  if (x==0)
-    uputc(up, '0');
-  else
-    urpx(up, x);
-  uputc(up, ' ');
-}
-
-int urpu(UART *up, int x)
-{
-  char c;
-  if (x){
-     c = tab[x % 10];
-     urpu(up, x / 10);
-  }
-  uputc(up, c);
-}
-
-int uprintu(UART *up, int x)
-{
-  if (x==0)
-    uputc(up, '0');
-  else
-    urpu(up, x);
-  uputc(up, ' ');
-}
-
-int uprinti(UART *up, int x)
-{
-  if (x<0){
-    uputc(up, '-');
-    x = -x;
-  }
-  uprintu(up, x);
-}
-
-int ufprintf(UART *up, char *fmt,...)
-{
-  int *ip;
-  char *cp;
-  cp = fmt;
-  ip = (int *)&fmt + 1;
-
-  while(*cp){
-    if (*cp != '%'){
-      uputc(up, *cp);
-      if (*cp=='\n')
-	uputc(up, '\r');
-      cp++;
-      continue;
+    int *ap = (int *)&fmt + 1;
+    char c;
+    UART *up = &uart[0];
+    while ((c = *fmt++)) {
+        if (c != '%') {
+            if (c == '\n') uputc(up,'\r');
+            uputc(up,c);
+            continue;
+        }
+        c = *fmt++;
+        if (c == 'c') uputc(up,(char)*ap++);
+        else if (c == 's') uputs(up,(char *)*ap++);
+        else if (c == 'd' || c == 'u') {
+            int n = *ap++;
+            char buf[16]; int i = 0;
+            if (n < 0 && c == 'd') { uputc(up,'-'); n = -n; }
+            if (n == 0) buf[i++] = '0';
+            while (n) { buf[i++] = '0' + (n % 10); n /= 10; }
+            while (i--) uputc(up,buf[i]);
+        } else if (c == 'x') {
+            u32 n = (u32)*ap++;
+            int i;
+            uputs(up,"0x");
+            for (i = 28; i >= 0; i -= 4)
+                uputc(up,hex[(n >> i) & 0xF]);
+        }
     }
-    cp++;
-    switch(*cp){
-    case 'c': uputc(up, (char)*ip);      break;
-    case 's': uprints(up, (char *)*ip);  break;
-    case 'd': uprinti(up, *ip);           break;
-    case 'u': uprintu(up, *ip);           break;
-    case 'x': uprintx(up, *ip);  break;
-    }
-    cp++; ip++;
-  }
 }
-
-int uprintf(char *fmt, ...)
+void uprintf1(const char *fmt, ...)
 {
-  int *ip;
-  char *cp;
-  cp = fmt;
-  ip = (int *)&fmt + 1;
-
-  UART *up = &uart[0];
-
-  while(*cp){
-    if (*cp != '%'){
-      uputc(up, *cp);
-      if (*cp=='\n')
-	uputc(up, '\r');
-      cp++;
-      continue;
+    int *ap = (int *)&fmt + 1;
+    char c;
+    UART *up = &uart[1];
+    while ((c = *fmt++)) {
+        if (c != '%') {
+            if (c == '\n') uputc(up,'\r');
+            uputc(up,c);
+            continue;
+        }
+        c = *fmt++;
+        if (c == 'c') uputc(up,(char)*ap++);
+        else if (c == 's') uputs(up,(char *)*ap++);
+        else if (c == 'd' || c == 'u') {
+            int n = *ap++;
+            char buf[16]; int i = 0;
+            if (n < 0 && c == 'd') { uputc(up,'-'); n = -n; }
+            if (n == 0) buf[i++] = '0';
+            while (n) { buf[i++] = '0' + (n % 10); n /= 10; }
+            while (i--) uputc(up,buf[i]);
+        } else if (c == 'x') {
+            u32 n = (u32)*ap++;
+            int i;
+            uputs(up,"0x");
+            for (i = 28; i >= 0; i -= 4)
+                uputc(up,hex[(n >> i) & 0xF]);
+        }
     }
-    cp++;
-    switch(*cp){
-    case 'c': uputc(up, (char)*ip);      break;
-    case 's': uprints(up, (char *)*ip);   break;
-    case 'd': uprinti(up, *ip);           break;
-    case 'u': uprintu(up, *ip);           break;
-    case 'x': uprintx(up, *ip);  break;
-    }
-    cp++; ip++;
-  }
 }
-
