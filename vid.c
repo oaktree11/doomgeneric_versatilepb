@@ -206,7 +206,7 @@ int kputc(char c)
       scroll();
     }
   }
-  putcursor(cursor); 
+  putcursor(); 
   //printf("row=%d col=%d\n", row, col);
 }
 

@@ -42,7 +42,7 @@ void copy_vectors(void) {
        *vectors_dst++ = *vectors_src++;
 }
 int kprintf(char *fmt, ...);
-void timer_handler();
+void timer_handler(int);
 extern int sdc_handler();
 
 // IRQ interrupts handler entry point
@@ -64,7 +64,7 @@ void kc_handler()
     }
     if (vicstatus & (1<<12)){ // Bit 12 
          uart_handler(&uart[0]);
-	  kprintf("U0 "); 
+	//  kprintf("U0 "); 
     }
     if (vicstatus & (1<<13)){ // bit 13
          uart_handler(&uart[1]);
@@ -321,6 +321,15 @@ int _read(int fd, char *buf, int len) {
     if (f_read(fp, buf, len, &br) != FR_OK) return -1;
     return br;
 }
+
+int _write(int fd, char *buf, int len) {
+    FIL *fp = (FIL*)fil_nos[fd];
+    UINT br;
+    //uprintf("write %s\n",buf);
+    if (fd <3) return;
+    if (f_write(fp, buf, len, &br) != FR_OK) return -1;
+    return br;
+}
 #define SEEK_SET	0
 #define SEEK_CUR	1
 #define SEEK_END	2
@@ -339,6 +348,59 @@ int _close(int fd) {
     free(fp);
     return 0;
 }
+
+
+
+/* File status: report a character device. */
+int _fstat(int file, struct stat *st)
+{
+    (void)file;
+
+    
+    return 0;
+}
+
+/* No process ID on bare-metal firmware. */
+int _getpid(void)
+{
+    return 1;
+}
+
+/* Indicate that a file descriptor is not a terminal. */
+int _isatty(int file)
+{
+    (void)file;
+    return 0;
+}
+
+/* No operating-system process signalling. */
+int _kill(int pid, int sig)
+{
+    (void)pid;
+    (void)sig;
+
+   
+    return -1;
+}
+/* Hard links are not supported on bare-metal firmware. */
+int _link(const char *oldpath, const char *newpath)
+{
+    (void)oldpath;
+    (void)newpath;
+
+    
+    return -1;
+}
+
+/* File deletion is not supported on bare-metal firmware. */
+int _unlink(const char *path)
+{
+    (void)path;
+
+    
+    return -1;
+}
+
 
 int main()
 {

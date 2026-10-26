@@ -13,7 +13,7 @@ endif
 
 
 CC=arm-none-eabi-gcc  # gcc or g++
-CFLAGS+=-g -O0
+CFLAGS+=-g -O0 -fpermissive -std=gnu99
 #LDFLAGS+=-Wl,--gc-sections
 CFLAGS+=-ggdb3 -Wall -DNORMALUNIX -DLINUX -DSNDSERV -D_DEFAULT_SOURCE # -DUSEASM
 #LIBS+=-lm -lc 
