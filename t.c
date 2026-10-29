@@ -64,7 +64,7 @@ void kc_handler()
     }
     if (vicstatus & (1<<12)){ // Bit 12 
          uart_handler(&uart[0]);
-//	  kprintf("U0 "); 
+	 // kprintf("U0 "); 
     }
     if (vicstatus & (1<<13)){ // bit 13
          uart_handler(&uart[1]);
@@ -92,8 +92,6 @@ int zero(){
 		arr[i]=0;
 }
 char pp[40];
-
-
 
 #if !FF_FS_NORTC && !FF_FS_READONLY
 DWORD get_fattime (void)
@@ -134,7 +132,7 @@ void* _sbrk(int incr) {
 
     if (new_heap_end >= &stack_top) {
         // Out of memory
-   //     printf("out of memory in sbrk incr = %d\n",incr);
+        //printf("out of memory in sbrk incr = %d\n",incr);
         return (void *) -1;
     }
 
@@ -181,13 +179,19 @@ void timer_init1(void) {
     mmio_write(TIMER0_BASE + TIMER_CONTROL,
         TIMER_CTRL_ENABLE | TIMER_CTRL_32BIT);
 }
+
+//#endif
+//int got_square,got_esc;
+
 Get_Pos_Data(int *num,int *x,int *y){
     int ch;
+    int ind = 0;
+    char buf[100];
     *x = 0;
     *y = 0;
-    *num = 0;
-
-    /*
+    
+    
+     /*
     TODO
     Read messages from the map viewer. This data will appear on UART1
     the pos messages consist of movements that are to be executed on a thing or the player. The format is:
@@ -197,24 +201,26 @@ Get_Pos_Data(int *num,int *x,int *y){
     the messages have a terminating carrige return i.e. '\n'.
     The up1 global variable points to the UART 1
     */
-
+    
     if (upeek(up1))
     {
         ch = ugetc(up1);
         
-       
     }
     return 0;
 }
-
-
+//#endif
+//int got_square,got_esc;
+int keys[300];
+int set_new_pos;
+int prev_key;
+int cnt_prev_key;
+int prev_key_value;
 int _Print_thinkers;
-
 int DG_GetKey(int *pressed, unsigned char *doomKey)
 {
-    int ch;
-
-    /*
+int ch;
+/*
         TODO
         keyboard input to doom
         doom expects a key press i.e. *pressed =1 followed by a key release indicated by *pressed =0. Thus, DG_GetKey function
@@ -243,7 +249,7 @@ int DG_GetKey(int *pressed, unsigned char *doomKey)
 
         This behaviour will cause the fire to turn off but will not be responsive.
         */
-    if (!upeek(up)){
+     if (!upeek(up)){
       
         return 0;
     }
@@ -346,7 +352,38 @@ yuy1++;
 }
 int color;
 
+/*** this is for converted images with |h|w|pixels| format ****
+int show(char *p, int startRow)
+{ 
+   int h, w, row, col, pixel; 
+   unsigned char r, g, b;
 
+   h = (*(p+3)<<24) + (*(p+2)<<16) + (*(p+1)<<8) + *p;
+   p += 4;
+   w = (*(p+3)<<24) + (*(p+2)<<16) + (*(p+1)<<8) + *p;
+   p += 4;          // skip over 8 byes
+
+   uprintf("h=%d w=%d\n", h, w);
+   //  if (h > 480) h = 480;
+   //if (w > 640) w = 640;
+
+   row = startRow; col = 0;
+   while(1){
+     r = *p; g = *(p+1); b = *(p+2);
+     pixel = (b<<16) + (g<<8) + r;
+     //     fb[row*640 + col] = pixel;
+     fb[row*WIDTH + col] = pixel;
+     p += 3;         // advance p by 3 bytes
+     col++;
+     if (col >= w){  // to line width of jpg image
+        col = 0;
+        row++;
+     }
+     if (row >= h+startRow)
+        break;
+   }
+}
+*******************************************/
 void DG_SetWindowTitle(const char * title)
 {
   uprintf(up,"title %s",title);
@@ -368,6 +405,7 @@ void fatfs_test(void) {
     }
     printf("Mounted filesystem OK\n");
 
+    
 }
 #include "ff.h"   // FatFs
 FIL *fil_nos[40];
@@ -393,6 +431,16 @@ int _read(int fd, char *buf, int len) {
     if (f_read(fp, buf, len, &br) != FR_OK) return -1;
     return br;
 }
+
+
+int _write(int fd, char *buf, int len) {
+    FIL *fp = (FIL*)fil_nos[fd];
+    UINT br;
+    //uprintf("write %s\n",buf);
+    if (fd <3) return;
+    if (f_write(fp, buf, len, &br) != FR_OK) return -1;
+    return br;
+}
 #define SEEK_SET	0
 #define SEEK_CUR	1
 #define SEEK_END	2
@@ -412,6 +460,56 @@ int _close(int fd) {
     return 0;
 }
 
+/* File status: report a character device. */
+int _fstat(int file, struct stat *st)
+{
+    (void)file;
+
+    
+    return 0;
+}
+
+/* No process ID on bare-metal firmware. */
+int _getpid(void)
+{
+    return 1;
+}
+
+/* Indicate that a file descriptor is not a terminal. */
+int _isatty(int file)
+{
+    (void)file;
+    return 0;
+}
+
+/* No operating-system process signalling. */
+int _kill(int pid, int sig)
+{
+    (void)pid;
+    (void)sig;
+
+   
+    return -1;
+}
+/* Hard links are not supported on bare-metal firmware. */
+int _link(const char *oldpath, const char *newpath)
+{
+    (void)oldpath;
+    (void)newpath;
+
+    
+    return -1;
+}
+
+/* File deletion is not supported on bare-metal firmware. */
+int _unlink(const char *path)
+{
+    (void)path;
+
+    
+    return -1;
+}
+
 int main()
 {
    char c, *p;
@@ -419,11 +517,10 @@ int main()
    char *argv[10];
    argv[0]="hello";
    argv[1]="-iwad";
-//   argv[2]="doom1.wad";
+   argv[2]="doom1.wad";
   // argv[3]="-file";
   
-  /* use this wad file in sdimage*/
-   argv[2]= "new_1lev.wad";
+ //  argv[2]= "new_1lev.wad";
   
    
    
@@ -461,7 +558,7 @@ int i, sector, N;
    //timer_start(0);
     sdc_init();
    uprintf("enter a key from this UART : ");
-   //uprintf1("enter a key from this UART : ");
+   
    fatfs_test();
    /*for (int yu=0;yu<40;yu++){
          if (!malloc(yu*10) )
